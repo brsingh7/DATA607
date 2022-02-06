@@ -1,0 +1,71 @@
+---
+title: "Brian_Singh_DATA607_Week1"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+# Overview
+The following data set contains predictions for the 2021-2022 NBA season for each game for every team, with probabilities of the game's result and Elo ratings before the game, as well as probability of Elo rating after the game, assigned. Elo is a measure of strength that is accumulated by a team on a game-by-game basis that takes into account the final score of a game, where it was played, and the result. A description of the Elo rating system can be found here: https://fivethirtyeight.com/features/how-we-calculate-nba-elo-ratings/.
+
+
+### 1. Load libraries and import data
+```{r import-data}
+library(tidyverse)
+library(readr)
+library(curl)
+library(ggplot2)
+library(dplyr)
+
+nba_2022<-read.csv(curl("https://raw.githubusercontent.com/brsingh7/DATA607/main/nba_elo_latest.csv"))
+```
+### 2. Extract subset of New York Knicks games for analysis and rename columns. Convert Date of game to date field.
+```{r}
+nyk_2022 <- subset(nba_2022, (team1 == "NYK" | team2 == "NYK"), select = c(date, team1, team2, elo_prob1, elo_prob2, score1, score2))
+
+colnames(nyk_2022) <- c("Date_of_Game", "Home_Team", "Away_Team", "Elo_Home", "Elo_Away", "Home_Team_Score", "Away_Team_Score")
+
+nyk_2022$Date_of_Game <- as.Date(nyk_2022$Date_of_Game)
+
+head(nyk_2022,n=10)
+```
+### 3. Add a column to determine the winning team.
+```{r}
+nyk_2022 <- nyk_2022 %>%
+    add_column(Winning_Team = "")
+```
+
+### 4. Add data to the new column to return the winning team for games played through 2/5/2022 and for games not yet played, return the winning team based on Elo probability.
+```{r}
+nyk_2022$Winning_Team <- ifelse(nyk_2022$Date_of_Game < as.Date('2022-02-06'),ifelse(nyk_2022$Home_Team_Score > nyk_2022$Away_Team_Score,nyk_2022$Winning_Team <- nyk_2022$Home_Team,nyk_2022$Winning_Team <- nyk_2022$Away_Team),ifelse(nyk_2022$Date_of_Game > as.Date('2022-02-05'),ifelse(nyk_2022$Elo_Home > nyk_2022$Elo_Away,nyk_2022$Winning_Team <- nyk_2022$Home_Team,nyk_2022$Winning_Team <- nyk_2022$Away_Team),""))
+```
+
+### 5. Add a column to denote Knicks result (win/loss).
+```{r}
+nyk_2022 <- nyk_2022 %>%
+    add_column(Win_Loss = "")
+```
+### 6. Populate win/loss column (1 for win, 0 for loss)
+```{r}
+nyk_2022$Win_Loss <- ifelse(nyk_2022$Winning_Team == "NYK", nyk_2022$Win_Loss <- 1,nyk_2022$Win_Loss <- 0)
+```
+
+### 7. Summarize Data
+```{r}
+print(summary(nyk_2022))
+table(nyk_2022$Win_Loss)
+wins <- count(nyk_2022,Win_Loss)
+```
+### 8. Add visuals to depict Knicks wins/losses for the season.
+```{r}
+record_hist <- hist(nyk_2022$Win_Loss,breaks=2, main = "NYK 2022 Wins/Losses", xlab = "Wins(1), Losses(0)", xlim = c(0,1),ylim=c(0,50),xaxp=c(0,1,1))
+text(record_hist$mids, record_hist$counts, labels = record_hist$counts, adj=c(0.5,-0.5))
+
+ggplot(data=nyk_2022)+
+    geom_smooth(mapping = aes(x=Date_of_Game,y=Win_Loss, color = "blue"))
+```
+
+
+# Conclusion
+As seen by the data, for the 2022 season, the New York Knicks are expected to finish the season with a record of 36-46 (0.439), which is most likely a record that will eliminate them from playoff contention. I would explore this data for the rest of the Eastern Conference teams in order to identify exactly what seed the Knicks would finish in based on the Elo probabilities used as the basis for these predictions. I would also generate tables and charts to better visualize the data, break down specifics of record by month, in order to analyze trends during the season.
+
