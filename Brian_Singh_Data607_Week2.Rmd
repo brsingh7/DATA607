@@ -1,0 +1,150 @@
+---
+title: "Brian_Singh_Data607_Week2"
+output: html_document
+---
+
+# Does gender, age, genre and a movie's release year impact how surveyees rate movies?
+
+## Overview
+The data below was collected from five individuals. Specifically, three males, two females, with ages ranging from 28 to 60. It represents how they rate six recent movies with varying genres (for the most part). Note, movies may have multiple genres -- the data only captures the "main" genre, as interpreted by myself, the surveyor, as the first listed under the movie's IMDB profile. If an individual did not see a movie in the survey, a null value is denoted in the "Rating" column.
+
+### 1. Load packages into R.
+```{r load-packages}
+library(readr)
+library(tidyverse)
+library(curl)
+library(ggplot2)
+library(dplyr)
+library(lubridate)
+library(DBI)
+library(odbc)
+```
+
+### 2. Read the survey data into an R data frame.
+```{r read-in-data}
+movie_ratings <- read.csv(curl("https://raw.githubusercontent.com/brsingh7/DATA607/main/Brian_Singh_movie_ratings"))
+head(movie_ratings,10)
+```
+
+### 3. Summarize data.
+```{r summarize-data}
+print(summary(movie_ratings))
+```
+
+### 4. Convert release year from integer to a date num field.
+```{r convert-release-year}
+movie_ratings$release_year <- as.Date(as.character(movie_ratings$release_year), format = "%Y")
+movie_ratings$release_year <- year(movie_ratings$release_year)
+```
+
+### 5. Find the average rating by genre, removing null values.
+```{r avg-rtg-genre}
+movie_ratings%>%
+    group_by(genre) %>%
+    summarise(mean_rtg = mean(rating, na.rm = TRUE,
+              count_rtg = n())) %>%
+    arrange(desc(mean_rtg))
+
+ggplot(data=subset(movie_ratings,!is.na(rating)),aes(x=reorder(genre,-rating),y=rating)) +
+    geom_bar(position = "dodge",
+        stat = "summary",
+        fun = "mean") +
+    ggtitle("Average Movie Rating by Genre") + xlab("Genre") + ylab("Avg Rating")
+```
+Based on the survey, it appears movies with an Action genre are rated regardless of age, with Drama performing the worst of the five included in the survey.
+
+### 6. Does recency bias have an impact on the movie's rating?
+```{r release-year-avg}
+movie_ratings%>%
+    group_by(release_year) %>%
+    summarise(mean_rtg = mean(rating, na.rm = TRUE),
+              count_rtg = n()) %>%
+    arrange(desc(mean_rtg))
+
+ggplot(data=subset(movie_ratings,!is.na(rating)),aes(x=release_year,y=rating)) +
+    geom_smooth(position = "dodge",
+        stat = "summary",
+        fun = "mean") +
+    ggtitle("Average Movie Rating by Release Year") + xlab("Release Year") + ylab("Avg Rating") +
+    ylim(1,5)
+```
+From the survey, no visible conclusion can be made based on in terms of recency bias. The range in differences of average rating year-over-year does not exceed 0.44.
+
+### 7. Does age have an impact on movie ratings, based on genre?
+```{r age-genre-rating}
+#Create a column to assign a group to "age" as follows: 20-30, 30-40, 40-50,50-60
+movie_ratings$age_group <- cut(movie_ratings$age,c(20,30,40,50,60))
+
+genre_age <- movie_ratings%>%
+    group_by(genre,age_group) %>%
+    summarise(mean_rtg = mean(rating, na.rm = TRUE),
+              count_rtg = n()) %>%
+    arrange(genre,age_group,desc(mean_rtg))
+genre_age
+
+ggplot(data=subset(genre_age,!is.na(mean_rtg)),aes(x=age_group,y=mean_rtg)) +
+    geom_bar(position = "dodge",
+        stat = "summary",
+        fun = "mean") +
+    facet_wrap(~genre)+
+    ggtitle("Average Movie Rating by Genre, Age") + xlab("Genre") + ylab("Avg Rating")
+```
+From the results, some conclusions may be inferred, though it leaves open questions that may require further investigation. Romance movies do not appear popular outside of the 30-40 year old age group. The 50-60 year old age group appear to favor Drama and Horror films, while the 20-30 year old group does not. 20-30 year olds appear to enjoy Action movies the most, with apparently no interest in Comedy. Because only one individual was surveyed in this age group, is this an outlier? The sample size is not large enough to draw a reasonable conclusion.
+
+### 8. Does interest in movie genres vary by gender?
+```{r age-gender-rating}
+movie_ratings$gender <- c("F","F","F","F","F","F","M","M","M","M","M","M","M","M","M","M","M","M","F","F","F","F","F","F","M","M","M","M","M","M") #I attempted an ifelse based on Tasha and Shoma to return F, else return M, but it kept returning all F
+
+movie_ratings%>%
+    group_by(gender, genre) %>%
+    summarise(mean_rtg = mean(rating, na.rm = TRUE,
+              count_rtg = n())) %>%
+    arrange(genre,gender,desc(mean_rtg))
+
+ggplot(data=subset(movie_ratings,!is.na(rating)),aes(x=gender,y=rating, color=gender)) +
+    geom_bar(position = "dodge",
+        stat = "summary",
+        fun = "mean") +
+    facet_wrap(~genre) +
+    ggtitle("Average Movie Rating by Genre, Gender") + xlab("Gender") + ylab("Avg Rating")
+```
+Based on the results, females tend to prefer Romance over males, while males tend to rate Action and Comedy higher than females. The average rating for Drama is relatively equal across male & female genders. It does not appear that the females in this survey cared to watch Horror films, at least not The Invisible Man. 
+
+```{r}
+# ### 9. Does replacing null values with the average by genre and gender tell a better story?
+# 
+# #I attempted to replace null values with the average by genre and gender as calculated above to "predict" what the rating would be if the person, in fact, saw the movie. I came across some errors in attempting to do so, so I commented out the code. Any input would be great.
+# 
+# #replace nan with 0
+# movie_ratings$rating <- ifelse(is.nan(movie_ratings$rating),0,movie_ratings$rating)
+# #average genre rating by gender
+# avg_genre_gender <- movie_ratings %>%
+#     group_by(genre,gender) %>%
+#     summarise_at(vars(rating), list(avg=mean),na.rm=TRUE)
+# 
+# avg_genre_gender
+# 
+# #copy movie rating table & replace na's with avg by gender/genre
+# movie_ratings2 <- movie_ratings
+# movie_ratings2$rating <- as.double(movie_ratings2$rating) #convert int to double for matching columns
+# #replace nan with 0
+# movie_ratings2$rating <- ifelse(is.nan(movie_ratings2$rating)==TRUE,avg_genre_gender$avg[avg_genre_gender$genre %in% movie_ratings2$genre && avg_genre_gender$gender %in% movie_ratings2$gender],movie_ratings2$rating)
+# movie_ratings2
+# 
+# movie_ratings2 %>%
+#     group_by(gender, genre) %>%
+#     summarise(mean_rtg = mean(rating,
+#               count_rtg = n())) %>%
+#     arrange(genre,gender,desc(mean_rtg))
+# 
+# ggplot(data=movie_ratings2,aes(x=gender,y=rating)) +
+#     geom_bar(position = "dodge",
+#         stat = "summary",
+#         fun = "mean") +
+#     facet_wrap(~genre) +
+#     ggtitle("Average Movie Rating by Genre, Gender") + xlab("Gender") + ylab("Avg Rating")
+
+```
+
+# Conclusion
+Per the survey results, it appears that gender and age in combination with a movie's genre affect how it's rated, however, recency bias is not apparent in the results. As seen above, Action movies are the highest rated without factoring in any other criteria. How could you not love Black Panther and Avengers: Endgame, anyway? When taking into account age groups (20-30, 30-40, and 50-60), you can see that ratings for Action and Drama movies are actually reversed, while the 30-40 year old age range favors Romance movies more so than other age groups. Finally, based on gender, the Male population is more into Action & Comedy movie, while Females prefer Romance, while apparently avoiding Horror films. With a small sample of 5 individuals, these conclusions are far from proven, however, it can serve as a basis for a hypothesis to be proven with in-depth research.
