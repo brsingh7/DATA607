@@ -1,0 +1,41 @@
+CREATE TABLE movie_ratings (
+	person varchar(255),
+	age integer,
+	movie_title varchar(255),
+	release_year integer,
+	genre varchar(255),
+	rating integer);
+
+INSERT INTO movie_ratings(person, age, movie_title, release_year, genre, rating)
+VALUES
+	('Tasha', 32, 'Black Panther',2018,'Action',4),
+	('Tasha', 32, 'Joker',2019,'Drama',2),
+	('Tasha', 32, 'The Invisible Man',2020,'Horror',NULL),
+	('Tasha', 32, 'A Star is Born',2018,'Romance',5),
+	('Tasha', 32, 'The Nice Guys',2016,'Comedy',3),
+	('Tasha', 32, 'Avengers: Endgame',2019,'Action',4),
+	('Dereck', 38, 'Black Panther',2018,'Action',5),
+	('Dereck', 38, 'Joker',2019,'Drama',3),
+	('Dereck', 38, 'The Invisible Man',2020,'Horror',4),
+	('Dereck', 38, 'A Star is Born',2018,'Romance',NULL),
+	('Dereck', 38, 'The Nice Guys',2016,'Comedy',5),
+	('Dereck', 32, 'Avengers: Endgame',2019,'Action',4),
+	('Andrew', 28, 'Black Panther',2018,'Action',5),
+	('Andrew', 28, 'Joker',2019,'Drama',1),
+	('Andrew', 28, 'The Invisible Man',2020,'Horror',3),
+	('Andrew', 28, 'A Star is Born',2018,'Romance',2),
+	('Andrew', 28, 'The Nice Guys',2016,'Comedy',NULL),
+	('Andrew', 28, 'Avengers: Endgame',2019,'Action',5),
+	('Shoma', 59, 'Black Panther',2018,'Action',3),
+	('Shoma', 59, 'Joker',2019,'Drama',NULL),
+	('Shoma', 59, 'The Invisible Man',2020,'Horror',NULL),
+	('Shoma', 59, 'A Star is Born',2018,'Romance',4),
+	('Shoma', 59, 'The Nice Guys',2016,'Comedy',2),
+	('Shoma', 59, 'Avengers: Endgame',2019,'Action',3),
+	('Balram', 60, 'Black Panther',2018,'Action',5),
+	('Balram', 60, 'Joker',2019,'Drama',4),
+	('Balram', 60, 'The Invisible Man',2020,'Horror',4),
+	('Balram', 60, 'A Star is Born',2018,'Romance',1),
+	('Balram', 60, 'The Nice Guys',2016,'Comedy',4),
+	('Balram', 60, 'Avengers: Endgame',2019,'Action',4);
+	
