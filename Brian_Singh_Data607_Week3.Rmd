@@ -1,0 +1,70 @@
+---
+title: "Brian_Singh_DATA607_Wk3"
+output: html_document
+---
+
+# DATA 607 -- Week Three - R Character Manipulation and Date Processing
+
+### Load libraries and import data
+```{r --import-libraries-data}
+library(tidyverse)
+library(readr)
+library(curl)
+library(ggplot2)
+library(dplyr)
+
+majors<-read.csv(curl("https://raw.githubusercontent.com/fivethirtyeight/data/master/college-majors/majors-list.csv"))
+```
+
+### **1. Identify the majors that contain either "DATA" or "STATISTICS"**
+```{r identify-data-statistics-majors}
+tibble(Major = majors$Major) %>%
+    tidyr::extract(Major,c("Data/Stats"),"(DATA|STATISTICS)",remove=FALSE) %>%
+    drop_na()
+```
+There are two majors containing "Statistics": Management Information Systems and Statistics and Statistics and Decision Science; and one major containing "Data": Computer Programming and Data Processing.
+
+### **2. Transform strings to vector**
+```{r transform-strings-vector}
+original_strings <- '[1] "bell pepper"  "bilberry"     "blackberry"   "blood orange"
+[5] "blueberry"    "cantaloupe"   "chili pepper" "cloudberry"  
+[9] "elderberry"   "lime"         "lychee"       "mulberry"    
+[13] "olive"        "salal berry"'
+original_strings
+
+convert_to_vector <- unlist(str_extract_all(original_strings, pattern = "\"([a-z]+.[a-z]+)\""))
+convert_to_vector <- str_remove_all(convert_to_vector, "\"")
+convert_to_vector <- convert_to_vector %>%
+    str_c(collapse = ", ")
+convert_to_vector
+```
+
+### **3. Describe, in words, what these expressions will match:**
+
+#### (.)\1\1
+This would match any character followed by two repetitions of itself "".
+
+#### "(.)(.)\\2\\1"
+This will match two characters, e.g. "xy" as the .., followed by the second character, "y", and then the first character, "x". In this example, xyyx.
+
+#### (..)\1
+This would match any two characters repeated once if this was enclosed by "".
+
+#### "(.).\\1.\\1"
+This will return a match on a string that has the first character, third and fifth as the same. The 2nd and 4th characters can be any character.
+
+#### "(.)(.)(.).*\\3\\2\\1"
+This will match three of the same characters in a row and then any amount of characters, then the first three characters in reverse order.
+
+### **4. Construct regular expressions to match words that:**
+
+#### A: Start and end with the same character.
+"^(.)((.*\\1$)|\\1?$)"
+
+#### B: Contain a repeated pair of letters (e.g. "church" contains "ch" repeated twice.)
+"([A-Za-z][A-Za-z]).*\\1")
+
+#### C. Contain one letter repeated in at least three places (e.g. "eleven" contains three "e"s.)
+"([A-Za-z][A-Za-z]).*\\1"
+
+
