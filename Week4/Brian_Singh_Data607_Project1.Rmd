@@ -1,0 +1,67 @@
+---
+title: "Brian_Singh_DATA607_Project1"
+output: html_document
+---
+
+# DATA 607 Project 1
+
+```{r libraries-import-data}
+library(tidyverse)
+library(readr)
+library(curl)
+library(ggplot2)
+library(dplyr)
+tourney_data<-read.csv(curl("https://raw.githubusercontent.com/brsingh7/DATA607/main/Week4/tournamentinfo.txt"), header=FALSE, sep="|",skip=4)
+#tourney_data <- read.csv("tournamentinfo.txt", header=FALSE, sep="|",skip=4)
+```
+
+## 2. Separate required data into vectors for use and combine into a data frame with Player’s Name, Player’s State, Total Number of Points, Player’s Pre-Rating and each round's opponent. Create a separate table with each player's pre-match rating in order to perform a join.
+```{r create-data-frames}
+rows1 <- tourney_data[seq(1, nrow(tourney_data), 3), ]
+rows2 <- tourney_data[seq(2, nrow(tourney_data), 3), ]
+player_number <- as.integer(str_match(rows1$V1,"\\d+"))
+player_name <- str_trim(rows1$V2)
+player_points <- as.double(str_trim(rows1$V3))
+player_rating <- as.integer(str_match(str_trim(rows2$V2),"\\s\\d{3,4}+"))
+state <- str_trim(rows2$V1)
+round1 <- as.integer(str_match(str_trim(rows1$V4),"\\d{1,2}"))
+round2 <- as.integer(str_match(str_trim(rows1$V5),"\\d{1,2}"))
+round3 <- as.integer(str_match(str_trim(rows1$V6),"\\d{1,2}"))
+round4 <- as.integer(str_match(str_trim(rows1$V7),"\\d{1,2}"))
+round5 <- as.integer(str_match(str_trim(rows1$V8),"\\d{1,2}"))
+round6 <- as.integer(str_match(str_trim(rows1$V9),"\\d{1,2}"))
+round7 <- as.integer(str_match(str_trim(rows1$V10),"\\d{1,2}"))
+
+player_df <- data.frame(player_number,player_name,state,player_points,player_rating,round1,round2,round3,round4,round5,round6,round7)
+player_ratings_df<-data.frame(player_number,player_rating)
+```
+
+### 3. Compare the two tables and return each opponent's rating for each player using a left join.
+```{r join-tables}
+joined <- left_join(player_df,player_ratings_df,by=c("round1"="player_number"))
+joined <- joined %>%
+  left_join(player_ratings_df,by=c("round2"="player_number"))%>%
+  left_join(player_ratings_df,by=c("round3"="player_number"))%>%
+  left_join(player_ratings_df,by=c("round4"="player_number"))%>%
+  left_join(player_ratings_df,by=c("round5"="player_number"))%>%
+  left_join(player_ratings_df,by=c("round6"="player_number"))%>%
+  left_join(player_ratings_df,by=c("round7"="player_number"))
+colnames(joined) <- c("Player_ID","Player_Name","State","Player_points","Player_Rating","Round1_Opp","Round2_Opp","Round3_Opp","Round4_Opp","Round5_Opp","Round16_Opp","Round7_Opp","Opp1_Rating","Opp2_Rating","Opp3_Rating","Opp4_Rating","Opp5_Rating","Opp6_Rating","Opp7_Rating")
+```
+
+### 4. Calculate Average Pre Chess Rating of Opponents.
+```{r calculate-opp-avg}
+joined$Opponent_Avg<-rowMeans(joined[,c("Opp1_Rating","Opp2_Rating","Opp3_Rating","Opp4_Rating","Opp5_Rating","Opp6_Rating","Opp7_Rating")],na.rm=TRUE)
+joined$Opponent_Avg<-round(joined$Opponent_Avg)
+```
+
+### 5. Create final data frame with Player’s Name, Player’s State, Total Number of Points, Player’s Pre-Rating, and Average Pre Chess Rating of Opponents and write to .csv
+```{r final-table}
+chess_tournament <- joined %>%
+  select("Player_Name","State","Player_points","Player_Rating","Opponent_Avg")
+head(chess_tournament,15)
+write.csv(chess_tournament, "chess_tournament.csv",row.names=FALSE)
+#write.csv(chess_tournament,file = file.choose(new = T),row.names=FALSE)
+```
+
+
