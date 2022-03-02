@@ -1,0 +1,110 @@
+---
+title: "Brian_Singh_DATA607_Week5"
+author: "Brian Singh"
+date: '2022-03-01'
+output: html_document
+---
+
+# Data 607 Week 5 – Tidying and Transforming Vaccination Data
+
+### 1. Import libraries and data
+```{r libraries-import-data}
+library(tidyverse)
+library(readr)
+library(curl)
+library(ggplot2)
+library(dplyr)
+library(DescTools)
+#vaccine_data <- read.csv("vaccinations.csv",skip=1,na.strings=c("","NA"))
+vaccine_data<-read.csv(curl("https://raw.githubusercontent.com/brsingh7/DATA607/main/Week5/vaccinations.csv"),skip=1,na.strings=c("","NA"))
+```
+
+### 2. Tidying and Transforming Data for use in analysis
+```{r tidy-data}
+#rename columns
+colnames(vaccine_data) <- c("Age","Not_Vaccinated","Fully_Vaccinated","Severe_NotVax_Per100K","Severe_FullyVax_Per100K","Efficacy_Vs_Severe_Disease")
+
+#fill in age column "NA"s with value above for categorization
+vaccine_data <- vaccine_data %>% 
+  fill(Age)
+
+#Extract Age column and values where string ends in % to a new table. Remove irrelevant columns, rename columns
+percentages <- vaccine_data[c(2,4),]
+percentages <- percentages[,-c(4:6)]
+colnames(percentages) <- c("Age","Pct_NotVax","Pct_FullyVax")
+
+#remove rows 2, 4 from vaccine data frame
+vaccine_data <- vaccine_data[-c(2,4),]
+
+#join new table with original
+vaccine_data2 <- left_join(vaccine_data,percentages,by=c("Age"="Age"))
+
+#convert character values to #s for use in calculations
+vaccine_data2$Pct_NotVax <- as.numeric(sub("%","",vaccine_data2$Pct_NotVax))/100
+vaccine_data2$Pct_FullyVax <- as.numeric(sub("%","",vaccine_data2$Pct_FullyVax))/100
+vaccine_data2$Not_Vaccinated <- as.numeric(gsub(",", "", vaccine_data2$Not_Vaccinated))  
+vaccine_data2$Fully_Vaccinated <- as.numeric(gsub(",", "", vaccine_data2$Fully_Vaccinated)) 
+
+#reorder columns
+vaccine_data2 <- vaccine_data2[,c("Age","Not_Vaccinated","Pct_NotVax","Severe_NotVax_Per100K","Fully_Vaccinated","Pct_FullyVax","Severe_FullyVax_Per100K","Efficacy_Vs_Severe_Disease")]
+
+vaccine_data2
+```
+
+### Q1. Do you have enough information to calculate the total population?  What does this total population represent?
+
+*A: Yes, there is enough information to calculate the total population. The population under 50 years old in the given data accounts for 96.3% of the population under 50, whereas the population of vaxed/nonvaxed over 50 accounts for 98.3% of the population over 50. Given this data, we know there is another 3.7% of the population under 50 and 1.7% of the population over 50, which may represent the population ineligible for the vaccine due to age/health/other factors.*
+
+```{r Q1}
+#create a function to calculate populations based on totals and percentages given
+full_pop <- function(totalvaxed_unvaxed,total_percent){
+    total_pop<-totalvaxed_unvaxed/total_percent
+    return(round(total_pop))
+}
+
+pop_under_50 <- full_pop(sum(vaccine_data2$Not_Vaccinated[1],vaccine_data2$Fully_Vaccinated[1]),sum(vaccine_data2$Pct_NotVax[1],vaccine_data2$Pct_FullyVax[1]))
+
+pop_over_50 <- full_pop(sum(vaccine_data2$Not_Vaccinated[2],vaccine_data2$Fully_Vaccinated[2]),sum(vaccine_data2$Pct_NotVax[2],vaccine_data2$Pct_FullyVax[2]))
+
+total_pop <- pop_under_50+pop_over_50
+print(paste("The total population in Israel is",total_pop,"people."))
+```
+
+### Q2. Calculate the Efficacy vs. Disease; Explain your results.
+
+*A: Based on the calculations, the vaccine has a 74% efficacy against contracting severe disease for the population under 50 years old. Interestingly, the vaccine appears to have a negative effect on the population over 50 years old as we see an increase in severe cases for those fully vaccinated by approximately 0.12% (290 fully vaxed vs. 171 unvaxed). In totality, regardless of age, the vaccine appears to have a negative effect, however this is skewed by the large disparity in the effectiveness between the two age groups.*
+
+```{r Q2}
+#create a function to calculate efficacy
+efficacy_severe <- function(vaxed_severe,unvaxed_severe){
+    pct_severe<-(vaxed_severe/100000)/(unvaxed_severe/100000)
+    return(1-pct_severe)
+}
+
+efficacy_under50 <- round(efficacy_severe(vaccine_data2$Severe_FullyVax_Per100K[1],vaccine_data2$Severe_NotVax_Per100K[1]),3)
+print(paste("The efficacy under 50 years old is",efficacy_under50*100,"%"))
+
+
+efficacy_over50 <- round(efficacy_severe(vaccine_data2$Severe_FullyVax_Per100K[2],vaccine_data2$Severe_NotVax_Per100K[2]),3)
+print(paste("The efficacy over 50 years old is",efficacy_over50*100,"%"))
+
+total_efficacy <- round(efficacy_severe((vaccine_data2$Severe_FullyVax_Per100K[1]+vaccine_data2$Severe_FullyVax_Per100K[2]),(vaccine_data2$Severe_NotVax_Per100K[1]+vaccine_data2$Severe_NotVax_Per100K[2])),3)
+print(paste("The efficacy under 50 years old is",total_efficacy*100,"%"))
+```
+
+### Q3. From your calculation of efficacy vs. disease, are you able to compare the rate of severe cases in unvaccinated individuals to that in vaccinated individuals?
+
+*Yes. For individuals under 50, the rate of severe cases decreases by 0.032% for those vaccinated, however, it increases by 0.12% for those over 50. This is the basis of the results of the efficacy calculation.*
+```{r Q3}
+#calculate rate of change between severe cases for vaxed and unvaxed individuals
+rate_severe_vaxed_unvaxed <- function(vaxed_severe,unvaxed_severe){
+    rate<-(vaxed_severe-unvaxed_severe)/100000*100
+    return(rate)
+}
+
+rate_under50 <- round(rate_severe_vaxed_unvaxed(vaccine_data2$Severe_FullyVax_Per100K[1],vaccine_data2$Severe_NotVax_Per100K[1]),3)
+print(paste("The rate of severe cases in vaccinated vs. unvaccinated individuals under 50 years old is",rate_under50,"%"))
+
+rate_over50 <- round(rate_severe_vaxed_unvaxed(vaccine_data2$Severe_FullyVax_Per100K[2],vaccine_data2$Severe_NotVax_Per100K[2]),3)
+print(paste("The rate of severe cases in vaccinated vs. unvaccinated individuals over 50 years old is",rate_over50,"%"))
+```
