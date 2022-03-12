@@ -1,0 +1,151 @@
+---
+title: "Brian_Singh_DATA607_Project2C"
+author: "Brian Singh"
+date: '2022-03-10'
+output: 
+    html_document:
+        toc: TRUE
+---
+
+**Post by: Benson Yik Seong Toi**
+"Dataset: The Ramen rater, "THE BIG LIST," 2021
+
+Link: https://www.kaggle.com/residentmario/ramen-ratings
+
+This Dataset is recorded for a ramen product review. Up to date, this data is provided by 2500 reviewers and keeps updating any new ramen in the market.
+
+We can use this data set to analyze the favorite favor, best brand, ramen style, and more.
+
+The Kaggle page has an informative table to sort or filter to find our needs."
+
+---------------
+
+```{r setup, include=FALSE, warning=FALSE}
+knitr::opts_chunk$set(message = FALSE)
+```
+
+### 1. Import libraries and data
+```{r libraries-import-data}
+library(tidyverse)
+library(readr)
+library(curl)
+library(ggplot2)
+library(ggmap)
+library(dplyr)
+library(stringr)
+#ramen_ratings <- read.csv("ramen-ratings.csv")
+ramen_ratings <- read.csv(curl("https://raw.githubusercontent.com/brsingh7/DATA607/main/Week6/Project2C/ramen-ratings.csv"))
+```
+
+### 2. Tidy Data
+```{r}
+ramen_ratings <- ramen_ratings %>%
+  separate(Top.Ten,into=c("Year","Top_10_Rank"),sep=" \\#")
+
+ramen_ratings$Top_10_Rank <- as.integer(ramen_ratings$Top_10_Rank)
+
+#Identify then fill missing values in "Style". After identifying the varieties with an unknown style, conduct research to determine its style and populate within the df. Based on further research, E Men Chicken kamfen and 100 Furong Shrimp are both packs.
+ramen_ratings %>%
+    filter(Style == "")
+ramen_ratings$Style <- ifelse(ramen_ratings$Variety=="E Menm Chicken"|ramen_ratings$Variety=="100 Furong Shrimp","Pack",ramen_ratings$Style)
+
+#rename columns
+colnames(ramen_ratings) = c("Review_ID","Brand","Variety","Style","Country_Name","Rating","Year_In_Top_10","Top_10_Rank")
+
+#Convert columns
+ramen_ratings <- ramen_ratings %>%
+    mutate_at(c("Rating","Year_In_Top_10"),as.numeric)
+```
+
+### 3. Data Analysis
+```{r}
+#Favorite variety
+ramen_ratings %>%
+    group_by(Variety) %>%
+    summarise(avg_rating = round(mean(Rating),2),
+              count=n(),
+              in_top10 = ifelse(Top_10_Rank!="","Yes","No")) %>%
+    arrange(desc(avg_rating,count))
+
+ramen_ratings %>%
+    group_by(Variety) %>%
+    summarise(avg_rating = round(mean(Rating),2),
+              count=n(),
+              in_top10 = ifelse(Top_10_Rank!="","Yes","No")) %>%
+    filter(avg_rating==5)
+
+ramen_ratings %>%
+    group_by(Variety) %>%
+    summarise(avg_rating = round(mean(Rating),2),
+              count=n(),
+              in_top10 = ifelse(Top_10_Rank!="","Yes","No")) %>%
+    filter(in_top10=="Yes") %>%
+    arrange(avg_rating)
+
+ratings_hist <- hist(ramen_ratings$Rating, main="Ramen Ratings distribution", xlab="Rating",ylab="Count",ylim=c(0,800))
+text(ratings_hist$mids,ratings_hist$counts,adj=c(0.5,-0.5))
+
+#Favorite Brand
+ramen_ratings %>%
+    group_by(Brand) %>%
+    summarise(avg_rating = round(mean(Rating),2),
+              count=n()) %>%
+    arrange(desc(avg_rating))
+
+#Favorite Style
+ramen_ratings %>%
+    group_by(Style) %>%
+    ggplot(aes(x=Style,y=Rating)) +
+    geom_bar(position = "dodge",
+        stat = "summary",
+        fun = "mean") +
+    ggtitle("Average Rating by Ramen Style") + ylab("Avg Rating")
+
+#Ratings by Country
+ramen_ratings %>%
+    group_by(Country_Name) %>%
+    summarise(avg_rating = round(mean(Rating),2), 
+              count=n()) %>%
+    arrange(desc(avg_rating))
+
+country_rtg <- ramen_ratings %>%
+    group_by(Country_Name) %>%
+    summarise(avg_rating = mean(Rating))
+
+ramen_ratings <- left_join(ramen_ratings,country_rtg,by=c("Country_Name"="Country_Name"))
+```
+```{r}
+library("rnaturalearth")
+library("rnaturalearthdata")
+library("sf")
+
+mapdata <- map_data("world")
+View(mapdata)
+
+mapdata <- left_join(mapdata,country_rtg,by=c("region"="Country_Name"))
+
+map1 <- ggplot(mapdata,aes(x=long,y=lat,group=group))+
+    geom_polygon(aes(fill=avg_rating))
+
+map2 <- map1 + scale_fill_gradient(name="Average Ramen Rating", low = "yellow", high = "red", na.value = "grey50") +
+    theme(axis.text.x = element_blank(),
+          axis.text.y = element_blank(),
+          axis.ticks = element_blank(),
+          axis.title.y = element_blank(),
+          axis.title.x = element_blank(),
+          rect = element_blank())
+map2
+```
+
+
+### 4. Conclusions
+Based on the results, it's difficult to determine the most popular variety, as there are 368 out of 2,580 varieties with a score of 5 (highest possible score). Additionally, given the distribution of ratings, there is a left skewness based on the histogram, showing a largely positive rating towards ramen varieties. The same applies towards Brand, as 24 have an average rating of 5. However, MyKuali had 24 different varieties, and falls right below the subset of brands scoring a 5, with an average rating of 4.95. Given the amount of variety in conjunction with the average score, one could argue that this is the most popular brand. Based on style, the Ramen Bars appear to be the most favorite. Interestingly enough, given the average rating, the higher the rating does not necessarily equate to being placed in the top 10. It would be interesting to look into the criteria used to get a variety into the rankings and conduct further analysis.
+
+Which countries produce the best ramen? Given the data at hand, Brazil has the best ramen, with an average rating of 4.35, followed by Sarawak, however produce a minimal variety of Ramen compared to other countries. 
+
+### 5. References
+The following video provided guidance on the map:
+
+https://www.google.com/search?q=world+maps+with+dataset+in+r&sxsrf=APq-WBuqmiJyuVF_DnQ1x3_8PCMbPdnexA%3A1647118366701&ei=HggtYp63KvmlptQPzfCo2Ao&ved=0ahUKEwievpmJusH2AhX5kokEHU04CqsQ4dUDCA4&uact=5&oq=world+maps+with+dataset+in+r&gs_lcp=Cgdnd3Mtd2l6EAMyCAghEBYQHRAeMggIIRAWEB0QHjIICCEQFhAdEB4yCAghEBYQHRAeOgQIIxAnOgUIABCRAjoKCAAQsQMQgwEQQzoLCAAQgAQQsQMQgwE6BAgAEEM6CwguEIAEELEDEIMBOg4ILhCABBCxAxDHARCjAjoHCC4Q1AIQQzoQCC4QsQMQgwEQsQMQsQMQCjoHCAAQsQMQQzoLCAAQgAQQsQMQyQM6CAgAEIAEELEDOg0IABCABBCHAhCxAxAUOg0IABCABBCHAhDJAxAUOgUIABCABDoKCAAQgAQQhwIQFDoECAAQCjoICAAQFhAKEB46BQghEKABOgYIABAWEB5KBAhBGABKBAhGGABQAFj4F2DYGGgAcAF4AYABgwGIAeoSkgEEMjUuM5gBAKABAcABAQ&sclient=gws-wiz#kpvalbx=_4wgtYuPwMO-gptQPn6SL4Ao20
+
+
