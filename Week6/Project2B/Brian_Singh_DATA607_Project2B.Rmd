@@ -1,0 +1,122 @@
+---
+title: "Brian_Singh_DATA607_Project2B"
+author: "Brian Singh"
+date: '2022-03-10'
+output: 
+    html_document:
+        toc: TRUE
+    
+---
+
+**Post by: Edward Perez**
+"Many YouTubers (influencers) can make famous or destroy any brand here I found a dataset that can help see what they are saying.
+
+https://www.kaggle.com/praneshmukhopadhyay/youtubers-saying-things
+
+Some possible analyses are
+
+How big their audience is how many views who has the most view often"
+
+---------------
+
+```{r setup, include=FALSE, warning=FALSE}
+knitr::opts_chunk$set(message = FALSE)
+```
+
+### 1. Import libraries and data
+```{r libraries-import-data}
+library(tidyverse)
+library(readr)
+library(curl)
+library(ggplot2)
+library(dplyr)
+library(lubridate)
+library(stringr)
+library(scales)
+library(httr)
+#youtube <- read.csv("youtube.csv")
+youtube <- read.csv(curl("https://raw.githubusercontent.com/brsingh7/DATA607/main/Week6/Project2B/youtube.csv"))
+```
+
+### 2. Tidy data
+```{r, message=FALSE, warning=FALSE}
+#Separate numbers from subscribers variable
+youtube2 <- youtube %>%
+  separate(Subscribers,into=c("Num_Subscribers"),sep=" +") %>%
+  separate(Views,into=c("Num_Views"),sep=" +")
+
+#convert numbers with "K" "M" to numbers
+youtube2$Num_Subscribers <- as.numeric(sub("^(\\d+\\.?\\d*).*$", "\\1", youtube2$Num_Subscribers)) *
+  ifelse(grepl("K", youtube2$Num_Subscribers), 1000, 1) * 
+  ifelse(grepl("M", youtube2$Num_Subscribers), 1e6, 1)
+
+youtube2$Num_Views <- as.numeric(sub("^(\\d+\\.?\\d*).*$", "\\1", youtube2$Num_Views)) *
+  ifelse(grepl("K", youtube2$Num_Views), 1000, 1) * 
+  ifelse(grepl("M", youtube2$Num_Views), 1e6, 1)
+
+youtube2$Released[youtube2$Released==""] <- "Unknown"
+```
+
+```{r}
+#Convert the released column (contains "2 years ago, 3 years ago, 6 months ago, etc.") to a year variable.
+today <- ymd((as.Date(now())))
+youtube2$ReleaseYr <- ifelse(grepl("years",youtube2$Released,fixed=TRUE),year(today - years(as.numeric(sub("^(\\d+\\.?\\d*).*$", "\\1", youtube2$Released)))),ifelse(grepl("months",youtube2$Released,fixed=TRUE),year(today - months(as.numeric(sub("^(\\d+\\.?\\d*).*$", "\\1", youtube2$Released)))),"UNKNOWN"))
+```
+
+## 3. Data analysis
+```{r}
+#Create a table to summarize by youtube channel, total views, total subscribers and average views per subscriber. Sort by total subscribers.
+youtube2 %>%
+    group_by(Channel) %>%
+    summarise(total_subscribers = sum(Num_Subscribers),
+              total_views = sum(Num_Views),
+              avg_views_per_subscriber = total_views/total_subscribers)%>%
+    arrange(desc(total_subscribers))
+
+#Create a table to summarize by youtube channel, total views, total subscribers and average views per subscriber. Sort by average views per subscriber.
+youtube2 %>%
+    group_by(Channel) %>%
+    summarise(total_subscribers = sum(Num_Subscribers),
+              total_views = sum(Num_Views),
+              avg_views_per_subscriber = total_views/total_subscribers)%>%
+    arrange(desc(avg_views_per_subscriber))
+
+#Plot top 10 channels by total subscribers
+youtube2 %>% 
+    group_by(Channel) %>%
+    summarise(total_subscribers = sum(Num_Subscribers),
+              total_views = sum(Num_Views),
+              avg_views_per_subscriber = total_views/total_subscribers) %>%
+    arrange(desc(total_subscribers)) %>%
+    slice(1:10) %>%
+    ggplot(aes(x=reorder(Channel,total_subscribers),y=total_subscribers)) +
+    geom_bar(position = "dodge",
+        stat = "summary",
+        fun = "mean") +
+    ggtitle("Top 10 Youtube Channels by Total Views") + xlab("Channel") + ylab("Total Views") +
+    scale_y_continuous(labels = label_number(suffix = " M", scale = 1e-6))+
+    coord_flip()
+
+#Plot average views per subscriber for each channel
+youtube2 %>% 
+    group_by(Channel) %>%
+    summarise(total_subscribers = sum(Num_Subscribers),
+              total_views = sum(Num_Views),
+              avg_views_per_subscriber = total_views/total_subscribers) %>%
+    ggplot(aes(x=total_subscribers, y=avg_views_per_subscriber))+
+    geom_point() +
+    scale_x_continuous(labels = label_number(suffix = " K", scale = 1e-3))
+
+#Create histogram to look at frequency of views by Category
+youtube2 %>%
+    group_by(Category) %>%
+    summarise(count = n()) %>%
+    ggplot(aes(x=reorder(Category,(count)), y=count)) +
+    geom_bar(stat='identity') +
+    coord_flip()
+```
+
+## 4. Conclusion
+
+Based on the data, the Mr. Beast channel has the highest number of subscribers as well as the most views since 2009 of any channels, with over 2.6B subscribers and 3.6B views. However, total subscribers does not necessarily mean it is the most popular. In looking at the scatter plot, there is no direct correlation between the total subscribers and average views per subscriber. In fact, the Mr. Beast channel is not even in the top 60 of average view per subscriber, averaging a little over 1 view per subscriber. The channel with the most frequent views per subscriber is Parks and Recreation, with 10.8 views per subscriber.
+
