@@ -1,0 +1,60 @@
+---
+title: "Brian_Singh_DATA607_Week7"
+author: "Brian Singh"
+date: "3/19/2022"
+output: html_document
+---
+
+```{r}
+library(dplyr)
+library(RCurl)
+```
+
+
+### 1. JSON
+```{r JSON}
+library(jsonlite)
+#sport_books_json <- read_json("/Users/briansingh/Desktop/CUNY/Data607/Week7/sportbooks.json",simplifyVector=TRUE)
+sport_books_json <- read_json("https://raw.githubusercontent.com/brsingh7/DATA607/main/Week7/sportbooks.json",simplifyVector=TRUE)
+sport_books_json2 <- as.data.frame(sport_books_json)
+sport_books_json2
+```
+
+### 2. XML
+
+I was having trouble with XML. I validated the XML I created and it states it is valid. I'm not  sure how to proceed into reading in and converting to a data frame.
+
+```{r}
+library(XML)
+url<- "https://raw.githubusercontent.com/brsingh7/DATA607/main/Week7/sportbooks.xml"
+data<-getURL(url)
+sport_books_xml <- xmlTreeParse(data,useInternalNodes = TRUE)
+
+bind_rows(xpathApply(sport_books_xml, "//Frame", function(x) {
+  parent <- data.frame(as.list(xmlAttrs(x)), stringsAsFactors=FALSE)
+  kids <- bind_rows(lapply(xmlChildren(x), function(x) as.list(xmlAttrs(x))))
+  cbind.data.frame(parent, kids, stringsAsFactors=FALSE)
+}))
+```
+
+### 3. HTML
+```{r}
+library(XML)
+url2<- "https://raw.githubusercontent.com/brsingh7/DATA607/main/Week7/sportbooks.html"
+data2<-getURL(url2)
+sport_books_html <- htmlTreeParse(data2,useInternalNodes = T)
+sport_books_html2 <- readHTMLTable(sport_books_html, stringAsFactors = FALSE)
+sport_books_html2
+
+sport_books_html3 <- sapply(sport_books_html2[[1]][,-1], FUN= function(x) 
+    as.character(gsub(",", "", as.character(x), fixed = TRUE) ))
+sport_books_html3<-as.data.frame(substring(sport_books_html3,1), stringsAsFactors=FALSE)
+
+names(sport_books_html3)<-c("Author(s)","Release_Date","Rating")
+sport_books_html3$Title<-sport_books_html2[[1]][,1]
+sport_books_html3 <- sport_books_html3[,c(4,1,2,3)]
+sport_books_html3
+```
+### Conclusion
+My data frames (the ones I was able to successfully create) are pretty much identical. With a little more understanding of the files and how to use within R, I think they'd be identical regardless of type (HTML, XML, JSON).
+
