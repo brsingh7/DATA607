@@ -1,0 +1,38 @@
+---
+title: "BrianSingh_Data607_Week9"
+author: "Brian Singh"
+date: "4/1/2022"
+output: html_document:
+    toc: TRUE
+---
+
+# Data 607: Week 9 - Working with Web APIs
+
+## 1. Using GET & content()
+```{r}
+library(httr)
+library(dplyr)
+library(jsonlite)
+
+#Search for movie reviews. Supports filtering by Critics' Pick = yes
+nyt_url <- "https://api.nytimes.com/svc/movies/v2/reviews/search.json?critics-pick=Y&api-key=ymXgsVwAmDUoqwyh8GBv0Y07qINjVGh1"
+nyt_movie_reviews <- GET(nyt_url)
+nyt_movie_reviews
+movie_reviews <- content(nyt_movie_reviews, "text")
+review_results <- fromJSON(movie_reviews)
+#this returned data frames within my data frame which gave some trouble removing columns
+review_results <- review_results$results
+```
+
+## 2. Using fromJSON() directly
+```{r}
+##using fromJSON() directly, no GET()
+movie_reviews_results <- fromJSON(nyt_url,flatten=TRUE) %>%
+    data.frame()
+movie_reviews_results <- movie_reviews_results[-c(1:4,7,14,16:17,19:20)]
+colnames(movie_reviews_results) <- c("Movie_Name","MPAA_Rating", "Review_Author","Review_Headline","Short_Summary_Review","Review_Date","Movie_OpeningDate","Review_Last_Modified","Review_URL","Image_URL")
+movie_reviews_results$Review_Date <- as.Date(movie_reviews_results$Review_Date)
+movie_reviews_results$Movie_OpeningDate <- as.Date(movie_reviews_results$Movie_OpeningDate)
+movie_reviews_results$Review_Last_Modified <- as.Date(movie_reviews_results$Review_Last_Modified)
+```
+
