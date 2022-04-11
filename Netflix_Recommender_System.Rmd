@@ -1,0 +1,35 @@
+---
+title: "Netflix Recommender System"
+output: html_notebook
+---
+
+# Netflix Recommender System
+A recommender system I've always found interesting, and use weekly, is the one utilized by Netflix. Now, I've been using Netflix for over a decade, and the current recommender system is fairly new. I can tell that it attempts to recommend shows and movies based on my past viewing history. This is done through a Machine Learning algorithm that is trained based on a scoring function using historical information. It uses data to estimate the likelihood that the user will watch a particular title in the catalog based on viewing history, other members with similar taste, and information about titles viewed (genre, year, actors, etc.). Interestingly enough, and one thing I always wondered about, it also takes into account how long you've watched a title. Based on the algorithms, it will return recommended titles, with the highest ranked (or strongest recommendation) titles brought to the forefront of the user's page. Feedback is obtained from the user to improve the recommender system by adjusting the algorithms.
+
+Personally, a lot of recommended titles on my Netflix dashboard are of little, to no, interest to me. In addition, as I'm scrolling through titles, I'll forget a title I previously passed that may have been of interest, that I have to go back and find. If Netflix had the capability to add titles to a queue in order to reference after you're done scrolling, that would make things a lot easier. They can also use data from these user-generated queues, to potentially develop better targeted algorithms.
+
+This shows a detailed architecture diagram of Netflix:
+![Architecture diagram of Netflix](https://miro.medium.com/max/1400/0*i7UC8nVdGclqEkv7.png)
+
+*Scenario Design*
+1. Who are the target users?
+"The target market for Netflix includes males and females between the ages of 17-60 and households with
+income levels of $30,000 and up. Netflix also appeals to different racial/ethnic groups with an
+assortment of foreign and international films. In terms of psychographics, Netflix targets 3 basic
+groups: people who are too busy to go out and shop for movies, people who are frequent
+renters and movie buffs, and people who want to get the most value for their money."*
+
+*http://michaelwessel.weebly.com/uploads/6/8/1/0/6810798/netflix.pdf
+
+2. What are their key goals?
+Netflix's key goal is to give their members control to watch what they want, when they want, and where they want, ad-free.
+
+3. How can you help them accomplish these goals?
+Users can help accomplish these goals by providing constant feedback to Netflix in order to better their algorithms to enhance the user experience. Based on feedback, not only are algorithms adjusted for the user, but Netflix is able to obtain data to drive decisions on further licenses to obtain and films to produce, which contribute to the overall user experience going forward.
+
+References: 
+https://towardsdatascience.com/deep-dive-into-netflixs-recommender-system-341806ae3b48
+https://research.netflix.com/research-area/recommendations
+https://help.netflix.com/en/node/100639
+
+
