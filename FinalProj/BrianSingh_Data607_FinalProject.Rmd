@@ -1,0 +1,297 @@
+---
+title: "BrianSingh_Data607_FinalProject"
+author: "Brian Singh"
+date: '2022-05-09'
+output:
+  html_document:
+    df_print: paged
+    toc: yes
+    toc_float: yes
+    number_sections: yes
+    theme: cerulean
+  pdf_document:
+    toc: yes
+---
+
+# Brian Singh -- Web Scraping & Sentiment Analysis
+
+---
+
+## Intro
+From Thursday, April 28, 2022 to Saturday, April 30, 2022, the NFL held its annual draft, where teams have the opportunity to bolster their roster with young talent from college football. There are seven rounds, and teams acquire draft picks for each round based on their prior year's record. Of course, draft picks are traded, added as compensatory, etc., which becomes a little more complex. However, fans of NFL teams, or football in general, seldom know the ins and outs of every player drafted. A fan such as myself, only knows college players in the first two rounds, for the most part. After the draft, analysts break down team selections, rating them as positive/negative, typically with an A-F ranking. However, this varies widely based on opinion. 
+
+The following analysis aims to pull "expert" analyses from across the web to get an "even" mix of their opinions on the results of the San Francisco 49ers draft. In my personal opinion, I was not ecstatic about the results. Let's determine if this holds true based on sentiment analysis.
+
+___
+
+```{r}
+knitr::opts_chunk$set(message = FALSE, warning = FALSE)
+```
+
+
+### Load Libraries
+```{r}
+library(RCurl)
+library(tidytext)
+library(dplyr)
+library(janeaustenr)
+library(stringr)
+library(textdata)
+library(tidyr)
+library(ggplot2)
+library(rvest)
+library(wordcloud)
+library(wordcloud2)
+library(RColorBrewer)
+library(tm)
+library(reshape2)
+library(sentimentr)
+```
+
+### Webscraping trial and error
+```{r}
+# art1 <- read_html("https://www.ninersnation.com/2022/5/6/23060144/sb-nation-reacts-44-of-49er-fans-grade-the-2022-draft-class-as-a-b")
+# 
+# art1b<-art1 %>%
+#     html_nodes("p") %>%
+#     html_text()
+# 
+# art1b <- as.data.frame(art1b)
+# art2b <- art1b %>%
+#     unnest_tokens(word, art1b)
+# 
+# art3 <- read_html("https://ninernoise.com/2022/05/06/49ers-wide-receiver-no-weakness-nfl-draft/")
+# 
+# art3b <- art3 %>%
+#     html_nodes("p") %>%
+#     html_text()
+# 
+# art3b <- as.data.frame(art3b)
+# art3b <- art3b %>%
+#     unnest_tokens(word, art3b)
+# 
+# art4 <- rbind(art2b,art3b)
+```
+
+
+### Create a function to unnest words
+```{r}
+#Create a function to unnest word from articles
+unpack <- function(x) {
+    x <- x %>%
+        html_nodes("p") %>%
+        html_text()
+    x <- as.data.frame(x)
+    x <- x %>%
+        unnest_tokens(word,x)
+    return(x)
+}
+```
+
+### Webscraping
+```{r}
+#create a list of links to analyze articles from
+links <- list("https://ninernoise.com/2022/05/06/49ers-wide-receiver-no-weakness-nfl-draft/","https://www.ninersnation.com/2022/5/6/23060144/sb-nation-reacts-44-of-49er-fans-grade-the-2022-draft-class-as-a-b","https://clutchpoints.com/san-francisco-49ers-2022-nfl-draft-grades-for-every-pick/","https://www.49ers.com/news/49ers-power-rankings-2022-draft-nfl-bleacher-report-nfc-west","https://www.espn.com/blog/san-francisco-49ers/post/_/id/40888/san-francisco-49ers-nfl-draft-picks-2022-analysis-for-every-selection","https://www.ninersnation.com/2022/5/5/23050089/49ers-draft-class-2022","https://www.ninersnation.com/2022/5/1/23050435/49ers-analysis-2022-nfl-draft-grades-drake-jackson-brock-purdy","https://www.ninersnation.com/2022/5/1/23050435/49ers-analysis-2022-nfl-draft-grades-drake-jackson-brock-purdy","https://www.49erswebzone.com/articles/157974-2022-nfl-draft-experts-49ers-grades-drake-jackson/","https://www.nbcsports.com/bayarea/49ers/49ers-2022-nfl-draft-grades-how-experts-rate-nine-player-class","https://www.profootballnetwork.com/san-francisco-49ers-nfl-draft-grades-2022-drake-jackson-comes-off-the-board-in-round-2/","https://www.profootballnetwork.com/san-francisco-49ers-draft-picks-2022/","https://www.tennessean.com/story/sports/nfl/2022/04/30/san-francisco-niners-nfl-draft-picks-tracker-2022/7326429001/","https://ninerswire.usatoday.com/2022/05/06/2022-nfl-draft-quarterbacks-trey-lance-49ers/")
+
+#For loop to read in htmls, call the unpack function, created above, and append the word list from each article
+word_list  <- data.frame()
+for (i in 1:length(links)){
+    site <- read_html(links[[i]])
+    text <- unpack(site)
+    word_list  <- rbind(word_list,text)
+}
+```
+
+### Stop words w/custom words added
+
+```{r}
+#Add stop words. I updated this list as I re-ran the code below and identified names/other words that would not add value to the analysis
+custom_stop_words <- bind_rows(tibble(word = c("49ers","draft","san","francisco","nfl","2022","samuel","trey","2021","pick","gray","davis","niners","la","lance","jimmy","team","price","de","castro","offseason","selected","purdy","garoppolo","6th","2nd","3rd","4th","5th","picks","fans","round","wide","jackson","danny","fields","grade","shanahan","zakelj","season","//'s","burford","nick","francisco's","womack","selection","drake","ucf","lot","chance","lsu","kalia","day","1","2","3","4","5","6","7"),  
+                                      lexicon = c("custom")), 
+                               stop_words)
+#Remove stop words
+word_list_remove_stop <- word_list %>%
+  anti_join(custom_stop_words)
+```
+
+### Barchart of most frequently words
+
+```{r}
+word_list_remove_stop %>% 
+  count(word, sort = TRUE) %>%
+  top_n(20) %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(x = word, y = n)) +
+  geom_col() +
+  xlab(NULL) +
+  coord_flip() +
+  labs(y = "Count",
+       x = "Unique words",
+       title = "Most frequent words found in the draft articles reviewed for San Francisco 49ers",
+       subtitle = "Stop words removed from the list")
+```
+### Word clouds
+
+```{r}
+set.seed(1234)
+#Frequent words used in articles
+wordcloud(na.omit(word_list_remove_stop$word), min.freq=5, scale=c(5.0, 1.5), random.order=FALSE, rot.per=0.35, 
+          colors=brewer.pal(8, "Dark2"))
+
+#Negative and positive words used
+word_list_remove_stop %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(word, sentiment, sort = TRUE) %>%
+  acast(word ~ sentiment, value.var = "n", fill = 0) %>%
+  comparison.cloud(colors = c("gray20", "gray80"),
+                   max.words = 100)
+```
+
+### Sentiment analysis using bing
+
+```{r}
+fortyniners_sentiment_total <- word_list_remove_stop %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(sentiment) %>%
+  pivot_wider(names_from = sentiment, values_from = n, values_fill = 0) %>% 
+  mutate(sentiment = positive - negative)
+
+fortyniners_sentiment_total
+
+fortyniners_sentiment_byword <- word_list_remove_stop %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(word, sentiment) %>%
+  pivot_wider(names_from = sentiment, values_from = n, values_fill = 0) %>% 
+  mutate(sentiment = positive - negative)
+
+head(fortyniners_sentiment_byword,20)
+```
+
+### Bigrams -- relationships between words
+Let's take a look at Bigrams to determine if there would be a large impact with negated words.
+```{r}
+# Create a separate function to unpack bigrams
+unpack_bigrams <- function(x) {
+    x <- x %>%
+        html_nodes("p") %>%
+        html_text()
+    x <- as.data.frame(x)
+    x <- x %>%
+        unnest_tokens(bigram,x,token="ngrams",n=2)
+    return(x)
+}
+
+word_list_bigrams  <- data.frame()
+for (i in 1:length(links)){
+    site3 <- read_html(links[[i]])
+    text3 <- unpack_bigrams(site3)
+    word_list_bigrams  <- rbind(word_list_bigrams,text3)
+}
+
+head(word_list_bigrams,20)
+
+word_list_bigrams %>%
+    count(bigram,sort=TRUE)
+```
+
+### Remove bigram stop words
+```{r}
+#Split words, remove instances where a stop word exists from the custom stop list above. Join the words and only include bigrams (if a word was removed, no longer a valid bigram)
+
+bigrams_separated <- word_list_bigrams %>%
+  separate(bigram, c("word1", "word2"), sep = " ")
+
+bigrams_filtered <- bigrams_separated %>%
+  filter(!word1 %in% custom_stop_words$word) %>%
+  filter(!word2 %in% custom_stop_words$word) %>%
+    filter(!is.na(word1)|!is.na(word2))
+
+# new bigram counts:
+bigram_counts <- bigrams_filtered %>% 
+  count(word1, word2, sort = TRUE)
+
+bigram_counts
+
+#join the bigrams with valid words
+bigrams_united <- bigrams_filtered %>%
+  unite(bigram, word1, word2, sep = " ")
+
+bigrams_united
+```
+
+### Barchart of most frequently used bigrams
+
+```{r}
+bigrams_united %>% 
+  count(bigram, sort = TRUE) %>%
+  top_n(20) %>%
+  mutate(bigram = reorder(bigram, n)) %>%
+  ggplot(aes(x = bigram, y = n)) +
+  geom_col() +
+  xlab(NULL) +
+  coord_flip() +
+  labs(y = "Count",
+       x = "Unique bigrams",
+       title = "Most frequent bigrams found in the draft articles reviewed for San Francisco 49ers",
+       subtitle = "Stop words removed from the list")
+```
+### Use bigrams to determine negated words impact
+```{r}
+AFINN <- get_sentiments("afinn")
+negation_words <- c("not","no","never")
+negated_words <- bigrams_separated %>%
+  filter(word1 %in% negation_words) %>%
+  inner_join(AFINN, by = c(word2 = "word")) %>%
+  count(word1, word2, value, sort = TRUE)
+
+negated_words %>%
+  mutate(contribution = n * value) %>%
+  arrange(desc(abs(contribution))) %>%
+  head(20) %>%
+  mutate(word2 = reorder(word2, contribution)) %>%
+  ggplot(aes(n * value, word2, fill = n * value > 0)) +
+  geom_col(show.legend = FALSE) +
+  labs(x = "Sentiment value * number of occurrences",
+       y = "Words preceded by \"not,no,never\"")
+```
+You'll see that luck, great, and honoring contributed most to a positive sentiment analysis, where they truly should not have (e.g. "not great").
+
+```{r}
+bigrams_separated %>%
+  filter(word1 == "not") %>%
+  count(word1, word2, sort = TRUE)
+```
+
+### Sentiment analysis on sentences
+```{r}
+sentences  <- data.frame()
+for (i in 1:length(links)){
+    site4 <- read_html(links[[i]])
+    site4 <- site4 %>%
+        html_nodes("p") %>%
+        html_text()
+    sentences <- rbind(sentences,site4)
+}
+
+sentences_sent <- sentences %>%
+  get_sentences(text) %>% 
+  sentiment() %>% 
+  drop_na() %>%   # empty lines
+  mutate(sentence_id = row_number())
+
+sum(sentences_sent$sentiment)
+```
+Using get_sentences and performing sentiment analysis with the sentimentr package allows one to take into account negated words and assign a more accurate sentiment score accordingly. 
+
+### Conclusion
+Utilizing analyses from 14 articles from various sources (ESPN, NBC, Pro Football Network, etc.), I was able to scrape contents of the articles with the rvest package. Unnesting the words from the web scraping into unigrams, removing stop words, and assigning a bing sentiment score, there was an overall positive sentiment of 111. This was interesting, as I personally did not feel the same way. Therefore, I took it a step further to determine bigrams, specifically those with a negated word, to determine if it would have a big impact performing sentiment analysis on bigrams, instead. Based on the negated words of "no, not, never", there appeared to be not much of an impact. Proceeding with performing sentiment analyses on the sentences within the articles using the sentimentr package, it also scored the context positively.
+
+Looking individually at the articles on the internet, I then saw that analysts were actually favorable on the 49ers draft results, ranging from B- to A-, far better than the grade I gave with no professional insight. Analysts were high on Danny Gray, a playmaking wide receiver, which adds depth to their wide receiver position, one that needed some bolstering, especially with the uncertainty of the looming contract of Deebo Samuel. Additionally, 49ers added an additional pass rusher in Drake Jackson in the 2nd round, who some analysts rank as a 1st round talent. Playing alongside Nick Bosa and the rest of the defensive front, Drake Jackson can add another scary layer for the defensive line, even as a rookie.
+
+To take this another step forward, I would perform a correlation between words to determine the strength that bigrams/trigrams should hold in the sentiment analysis. I would then look at overall scores by article/source/author, to determine if these are writers/websites frequently known to be bias towards the 49ers.
+
+### References
+
+https://www.tidytextmining.com/
+
+
